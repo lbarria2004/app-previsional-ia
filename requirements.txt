@@ -1,7 +1,6 @@
 streamlit
-pandas
-pdfplumber
-fpdf
 google-generativeai
-openpyxl
 python-docx
+PyMuPDF
+pytesseract
+Pillow
