@@ -17,25 +17,23 @@ from PIL import Image
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(layout="wide", page_title="Asesor Previsional IA")
 
-# [INICIO BLOQUE MODIFICADO] - Nueva sección en la barra lateral
 st.sidebar.info("🤖 Asistente de Asesoría Previsional IA")
 st.sidebar.divider()
-st.sidebar.subheader("Modificar Informe Final")
+st.sidebar.subheader("Modificar Informe")
 
-# Esta caja es para *modificar* el informe *después* de que se haya generado
+# Caja de texto para modificar el informe
 instrucciones_mod = st.sidebar.text_area(
-    "Indicaciones de Modificación (Opcional)",
-    help="Una vez generado el informe completo (Secciones 1-6), puedes usar esta caja para pedirle a la IA que lo refine (ej. 'Acorta la sección 6', 'Pon el RUT en negrita', 'Cambia el tono a más formal').",
+    "Indicaciones de Modificación",
+    help="Usa esta caja para pedirle a la IA que refine el informe (ej. 'Elimina los puntos 1 y 2 de la nota', 'Acorta la sección 6', 'Cambia el tono a más formal').",
     key="instrucciones_mod"
 )
 
-# El botón "Refrescar" se definirá más abajo, dentro de la lógica principal
-# [FIN BLOQUE MODIFICADO]
+# El botón "Refrescar" se definirá más abajo
+# -------------------------------
 
 
 # --- 2. FUNCIONES DE LECTURA Y IA ---
 
-# [FUNCIÓN MODIFICADA CON OCR]
 @st.cache_data
 def leer_pdfs_cargados(files):
     """
@@ -55,7 +53,7 @@ def leer_pdfs_cargados(files):
                 page_num = i + 1
                 text = page.get_text("text")
                 
-                if len(text.strip()) < 150: # Umbral de 150 caracteres
+                if len(text.strip()) < 150: # Umbral
                     st.warning(f"Página {page_num} de {file.name} parece escaneada. Iniciando OCR...")
                     
                     zoom = 300 / 72
@@ -162,12 +160,9 @@ Basado ÚNICAMENTE en los documentos, genera el informe con la siguiente estruct
 
 # === PROMPT PASO 2: RECOMENDACIÓN (SECCIÓN 6) ===
 PROMPT_RECOMENDACION = """
-Eres un Asesor Previsional experto. Ya he generado un análisis de datos (Secciones 1-5) para un cliente.
-Ahora, necesito que redactes la **Sección 6: Recomendación Final** basándote en mis instrucciones y en el análisis.
-REGLAS:
-1.  Usa '##' para el título principal (## 6) Recomendación Final).
-2.  Usa '###' para cualquier subtítulo que necesites.
-3.  Usa un tono profesional, claro y empático.
+Eres un Asesor Previsional experto. Tu tarea es redactar la **Sección 6: Recomendación Final** para un informe.
+Te entregaré el análisis de datos (Secciones 1-5) como contexto, y las instrucciones del asesor humano.
+Redacta ÚNICAMENTE la "## 6) Recomendación Final" siguiendo las instrucciones.
 ---
 INSTRUCCIONES DEL ASESOR HUMANO PARA LA RECOMENDACIÓN:
 "{INSTRUCCIONES_USUARIO}"
@@ -175,19 +170,17 @@ INSTRUCCIONES DEL ASESOR HUMANO PARA LA RECOMENDACIÓN:
 CONTEXTO (ANÁLISIS DE DATOS SECCIONES 1-5):
 {ANALISIS_PREVIO}
 ---
-Redacta ÚNICAMENTE la "## 6) Recomendación Final" siguiendo mis instrucciones y usando el contexto para que sea coherente.
+Redacta ÚNICAMENTE la "## 6) Recomendación Final":
 """
 
-# [INICIO BLOQUE NUEVO] - Prompt y función para la modificación
+# === PROMPT PASO 3: MODIFICACIÓN ===
 PROMPT_MODIFICACION = """
 Eres un editor profesional. Tu tarea es tomar el siguiente informe previsional y modificarlo según las instrucciones del usuario.
-
 REGLAS:
 1.  **Aplica las modificaciones solicitadas** de forma precisa.
 2.  **No cambies el formato Markdown** (títulos ##, ###, tablas |, etc.) a menos que la instrucción te lo pida.
 3.  **Mantén el tono profesional** del informe.
-4.  Entrega el informe completo modificado, no solo la parte que cambiaste.
-
+4.  Entrega el **informe completo modificado**, no solo la parte que cambiaste.
 ---
 INFORME ORIGINAL:
 {INFORME_ACTUAL}
@@ -195,7 +188,6 @@ INFORME ORIGINAL:
 INSTRUCCIONES DEL USUARIO PARA MODIFICAR:
 "{INSTRUCCIONES_MODIFICACION}"
 ---
-
 INFORME MODIFICADO:
 """
 
@@ -221,7 +213,7 @@ def generar_modificacion_ia(informe_actual, instrucciones, api_key):
         )
         
         generation_config = {"temperature": 0.2, "response_mime_type": "text/plain"}
-        request_options = {"timeout": 300} # Damos más tiempo para re-escribir
+        request_options = {"timeout": 300}
         
         response = model.generate_content(
             prompt_completo,
@@ -233,7 +225,6 @@ def generar_modificacion_ia(informe_actual, instrucciones, api_key):
         st.error(f"Error al modificar el informe con IA: {e}")
         st.exception(e)
         return None
-# [FIN BLOQUE NUEVO]
 
 
 @st.cache_data(show_spinner=False)
@@ -405,17 +396,13 @@ def crear_reporte_doc(informe_texto):
 st.title("🤖 Asistente de Asesoría Previsional (IA)")
 st.write("Carga todos los documentos de tu cliente (SCOMP, Cartolas, APV, etc.) para generar un informe de asesoría consolidado.")
 
-# Inicializar estados de sesión
-if 'analisis_generado' not in st.session_state:
-    st.session_state.analisis_generado = None
-if 'recomendacion_generada' not in st.session_state:
-    st.session_state.recomendacion_generada = None
+# [INICIO BLOQUE MODIFICADO] - Lógica de estado simplificada
 if 'contexto_documentos' not in st.session_state:
     st.session_state.contexto_documentos = None
-# [INICIO BLOQUE NUEVO] - Estado para el informe final modificable
-if 'informe_final_actual' not in st.session_state:
-    st.session_state.informe_final_actual = None
-# [FIN BLOQUE NUEVO]
+# Esta es la ÚNICA variable que guarda el texto del informe
+if 'informe_actual' not in st.session_state:
+    st.session_state.informe_actual = None
+# [FIN BLOQUE MODIFICADO]
 
 uploaded_files = st.file_uploader(
     "1. Cargar antecedentes del cliente (PDF)", 
@@ -445,18 +432,48 @@ if uploaded_files:
                 )
             
             if analisis_resultado:
-                st.session_state.analisis_generado = analisis_resultado
-                st.session_state.recomendacion_generada = None # Resetear recomendación
-                st.session_state.informe_final_actual = None  # Resetear informe final
-                st.success("Análisis (Secciones 1-5) generado. Ahora escriba la recomendación.")
+                # [INICIO BLOQUE MODIFICADO]
+                st.session_state.informe_actual = analisis_resultado # Guarda el análisis (1-5)
+                # [FIN BLOQUE MODIFICADO]
+                st.success("Análisis (Secciones 1-5) generado. Ya puedes modificarlo o añadir la recomendación.")
             else:
                 st.error("No se pudo generar el análisis.")
 
-# --- PASO 2: Mostrar Análisis y Pedir Recomendación ---
-if st.session_state.analisis_generado:
+# [INICIO BLOQUE MODIFICADO] - Lógica de Refresco (Sidebar)
+# Este botón ahora funciona si el informe_actual (Sec 1-5) existe
+if st.sidebar.button("Refrescar Informe con Modificaciones"):
+    if st.session_state.informe_actual and st.session_state.instrucciones_mod:
+        try:
+            final_api_key = st.secrets["api_key"]
+        except:
+            st.error("Error: API Key no configurada.")
+            final_api_key = None
+        
+        if final_api_key:
+            with st.spinner("La IA está aplicando tus modificaciones..."):
+                informe_modificado = generar_modificacion_ia(
+                    st.session_state.informe_actual, # Envía el informe actual (1-5 o 1-6)
+                    st.session_state.instrucciones_mod,
+                    final_api_key
+                )
+            if informe_modificado:
+                st.session_state.informe_actual = informe_modificado # Sobrescribe el informe
+                st.success("Informe refrescado.")
+            else:
+                st.error("No se pudo modificar el informe.")
+    elif not st.session_state.informe_actual:
+        st.sidebar.warning("Debes generar el 'Análisis de Datos' (Sección 1-5) primero.")
+    else:
+        st.sidebar.warning("Escribe alguna instrucción de modificación en la caja de texto.")
+# [FIN BLOQUE MODIFICADO]
+
+
+# [INICIO BLOQUE MODIFICADO] - La app principal ahora se basa en un solo estado
+# --- PASO 2 y 3: Mostrar Informe, Pedir Recomendación y Descargar ---
+if st.session_state.informe_actual:
     
-    st.subheader("Vista Previa del Análisis (Secciones 1-5)")
-    st.markdown(st.session_state.analisis_generado)
+    st.subheader("Vista Previa del Informe Actual")
+    st.markdown(st.session_state.informe_actual)
     
     st.divider()
     st.subheader("2. Instrucciones para la Recomendación Final (Sección 6)")
@@ -464,10 +481,10 @@ if st.session_state.analisis_generado:
         "Escriba sus instrucciones para la recomendación:", 
         key="instrucciones_rec", 
         height=150,
-        help="Escriba aquí sus ideas (ej. 'Recomendar RVA a 60m con garantía 180m porque no tiene beneficiarios') y luego presione 'Generar Informe'."
+        help="Escribe aquí tus ideas (ej. 'Recomendar RVA a 60m...') y presiona el botón de abajo para AÑADIR la Sección 6 al informe."
     )
 
-    if st.button("Generar Informe Completo con Recomendación", type="primary"):
+    if st.button("Añadir Recomendación al Informe (Sección 6)", type="primary"):
         
         try:
             final_api_key = st.secrets["api_key"]
@@ -478,72 +495,30 @@ if st.session_state.analisis_generado:
         instrucciones_texto = st.session_state.instrucciones_rec
         
         if final_api_key and instrucciones_texto:
-            with st.spinner("La IA está redactando la recomendación (Sección 6)..."):
+            with st.spinner("La IA está redactando y añadiendo la recomendación (Sección 6)..."):
                 recomendacion_resultado = generar_recomendacion_ia(
-                    st.session_state.analisis_generado,
+                    st.session_state.informe_actual, # Usa el informe actual (1-5) como contexto
                     instrucciones_texto,
                     final_api_key
                 )
             
             if recomendacion_resultado:
-                st.session_state.recomendacion_generada = recomendacion_resultado
-                # [INICIO BLOQUE MODIFICADO] - Guardar el primer borrador
-                st.session_state.informe_final_actual = (
-                    st.session_state.analisis_generado + 
-                    "\n\n" + 
-                    st.session_state.recomendacion_generada
-                )
-                # [FIN BLOQUE MODIFICADO]
-                st.success("Recomendación generada. Ya puedes modificar o descargar el informe final.")
+                # --- Lógica de AÑADIR ---
+                st.session_state.informe_actual += "\n\n" + recomendacion_resultado
+                # --- Limpiar la caja de texto para evitar duplicados ---
+                st.session_state.instrucciones_rec = "" 
+                st.success("Recomendación añadida. Ya puedes modificar el informe completo o descargarlo.")
             else:
                 st.error("No se pudo generar la recomendación.")
         elif not instrucciones_texto:
             st.warning("Por favor, escriba las instrucciones para la recomendación.")
 
-# [INICIO BLOQUE MODIFICADO] - Lógica del nuevo botón de la barra lateral
-if st.sidebar.button("Refrescar Informe con Modificaciones"):
-    if st.session_state.informe_final_actual and st.session_state.instrucciones_mod:
-        try:
-            final_api_key = st.secrets["api_key"]
-        except:
-            st.error("Error: API Key no configurada.")
-            final_api_key = None
-        
-        if final_api_key:
-            with st.spinner("La IA está aplicando tus modificaciones..."):
-                informe_modificado = generar_modificacion_ia(
-                    st.session_state.informe_final_actual,
-                    st.session_state.instrucciones_mod,
-                    final_api_key
-                )
-            if informe_modificado:
-                st.session_state.informe_final_actual = informe_modificado # Sobrescribe el informe
-                st.session_state.recomendacion_generada = None # Limpia la recomendación separada
-                st.success("Informe refrescado.")
-            else:
-                st.error("No se pudo modificar el informe.")
-    elif not st.session_state.informe_final_actual:
-        st.sidebar.warning("Debes generar el informe completo (Sección 1-6) antes de poder modificarlo.")
-    else:
-        st.sidebar.warning("Escribe alguna instrucción de modificación en la caja de texto.")
-# [FIN BLOQUE MODIFICADO]
-
-
-# [INICIO BLOQUE MODIFICADO] - Ahora se basa en 'informe_final_actual'
-# --- PASO 3: Mostrar Informe Final y Descargas ---
-if st.session_state.informe_final_actual:
-    
-    st.divider()
-    st.subheader("Vista Previa del Informe Final (Secciones 1-6)")
-    # Muestra el informe completo y modificable
-    st.markdown(st.session_state.informe_final_actual)
-    
+    # --- Sección de Descarga ---
     st.divider()
     st.subheader("Descargar Informe Completo")
     
     try:
-        # Usa el estado final para la descarga
-        informe_completo_texto = st.session_state.informe_final_actual
+        informe_completo_texto = st.session_state.informe_actual
         
         doc_data = crear_reporte_doc(informe_completo_texto)
         
