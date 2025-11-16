@@ -421,6 +421,7 @@ st.divider()
 
 # --- PASO 1: Generar Análisis (Secciones 1-5) ---
 if uploaded_files:
+    # Esta línea ahora solo se ejecuta si los archivos cambian
     with st.spinner("Leyendo y procesando los archivos PDF..."):
         st.session_state.contexto_documentos = leer_pdfs_cargados(uploaded_files)
     
@@ -431,7 +432,7 @@ if uploaded_files:
             st.error("Error: La API Key no está configurada en los 'secrets' de la aplicación.")
             final_api_key = None
         
-        if final_api_key:
+        if final_api_key and st.session_state.contexto_documentos:
             with st.spinner("La IA está analizando los datos (Secciones 1-5)... (Esto puede tardar hasta 1 minuto)"):
                 analisis_resultado = generar_analisis_ia(
                     st.session_state.contexto_documentos,
@@ -443,6 +444,8 @@ if uploaded_files:
                 st.success("Análisis (Secciones 1-5) generado. Ya puedes modificarlo o añadir la recomendación.")
             else:
                 st.error("No se pudo generar el análisis.")
+        elif not st.session_state.contexto_documentos:
+             st.error("Error: No se pudo leer el contexto de los PDF.")
 
 # --- Lógica de Refresco (Sidebar) ---
 # Este botón ahora funciona si el informe_actual (Sec 1-5) existe
@@ -508,8 +511,11 @@ if st.session_state.informe_actual:
             if recomendacion_resultado:
                 # --- Lógica de AÑADIR ---
                 st.session_state.informe_actual += "\n\n" + recomendacion_resultado
+                
                 # --- Limpiar la caja de texto para evitar duplicados ---
+                # ESTA LÍNEA ESTÁ AHORA DENTRO DEL IF, ESTA ES LA CORRECCIÓN
                 st.session_state.instrucciones_rec = "" 
+                
                 st.success("Recomendación añadida. Ya puedes modificar el informe completo o descargarlo.")
                 
                 # --- LA CORRECCIÓN ---
