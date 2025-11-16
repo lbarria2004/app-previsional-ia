@@ -124,7 +124,7 @@ Basado ÚNICAMENTE en los documentos, genera el informe con la siguiente estruct
 ### 3) Situación previsional
 * **Tipo de Pensión Solicitada:** [Extraer, ej: Vejez Edad, Cambio de Modalidad]
 * **Saldo para Pensión:** **UF [Extraer Saldo UF]**
-* **Modalidades Solicitadas al SCOMP:** [Extraer las modalidades que se pidieron, ej: RVIS, RVA 100% 36m]
+* **Modalidades Solicitadas al SCOMP:** [Extraer las modalities que se pidieron, ej: RVIS, RVA 100% 36m]
 ### 4) Gestiones realizadas
 [Describir las gestiones en formato lista o tabla, extrayendo fechas y acciones. Ej:
 * **Solicitud de Pensión de Vejez Edad:** Presentada el [Fecha] a AFP [Nombre].
@@ -549,8 +549,7 @@ if st.session_state.informe_actual:
     except Exception as e:
         st.error(f"Error al generar el archivo de descarga: {e}")
         st.exception(e)
-
 # [FIN BLOQUE CORREGIDO]
 
-# La línea que daba error (st.session_state.instrucciones_rec = "") ya no está aquí.
-# Si tu código la tiene aquí, está mal y debes borrarla.
+# La línea de error "st.session_state.instrucciones_rec = """ NO DEBE ESTAR AQUÍ.
+# Como puedes ver, no está en este código.
