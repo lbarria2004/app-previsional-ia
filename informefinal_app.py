@@ -549,7 +549,8 @@ if st.session_state.informe_actual:
     except Exception as e:
         st.error(f"Error al generar el archivo de descarga: {e}")
         st.exception(e)
+
 # [FIN BLOQUE CORREGIDO]
 
-# La línea de error "st.session_state.instrucciones_rec = """ NO DEBE ESTAR AQUÍ.
-# Como puedes ver, no está en este código.
+# La línea que daba error (st.session_state.instrucciones_rec = "") ya no está aquí.
+# Si tu código la tiene aquí, está mal y debes borrarla.
