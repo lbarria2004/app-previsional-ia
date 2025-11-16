@@ -1,14 +1,12 @@
 import streamlit as st
-import pandas as pd
 from docx import Document
 from docx.shared import Inches
 from docx.shared import Pt
 import io
-import json
 import google.generativeai as genai
 from datetime import datetime
 
-# --- NUEVOS IMPORTS PARA OCR ---
+# --- IMPORTS PARA OCR ---
 import fitz  # PyMuPDF
 import pytesseract
 from PIL import Image
@@ -28,7 +26,7 @@ instrucciones_mod = st.sidebar.text_area(
     key="instrucciones_mod"
 )
 
-# El botón "Refrescar" se definirá más abajo
+# El botón "Refrescar" se definirá en la lógica principal
 # -------------------------------
 
 
@@ -47,30 +45,39 @@ def leer_pdfs_cargados(files):
         st.caption(f"- {file.name}")
         try:
             full_text = ""
+            # Abrir el PDF en memoria con PyMuPDF (fitz)
             doc = fitz.open(stream=io.BytesIO(file.read()), filetype="pdf")
             
             for i, page in enumerate(doc):
                 page_num = i + 1
+                
+                # 1. Intentar extracción de texto digital
                 text = page.get_text("text")
                 
-                if len(text.strip()) < 150: # Umbral
-                    st.warning(f"Página {page_num} de {file.name} parece escaneada. Iniciando OCR...")
+                # 2. Heurística: Si el texto es muy corto, probablemente es escaneado
+                if len(text.strip()) < 150: # Umbral de 150 caracteres
+                    st.warning(f"Página {page_num} de {file.name} parece escaneada. Iniciando OCR... (esto puede tardar)")
                     
-                    zoom = 300 / 72
+                    # 3. Renderizar la página como imagen (300 DPI)
+                    zoom = 300 / 72  # 300 DPI / 72 DPI (default)
                     mat = fitz.Matrix(zoom, zoom)
                     pix = page.get_pixmap(matrix=mat)
                     
+                    # 4. Convertir a formato PIL (Pillow)
                     img_data = pix.tobytes("png")
                     img = Image.open(io.BytesIO(img_data))
                     
+                    # 5. Usar Tesseract para OCR en español
                     try:
+                        # 'spa' = Spanish
                         ocr_text = pytesseract.image_to_string(img, lang='spa')
                         full_text += f"\n\n--- PÁGINA {page_num} ({file.name}) [Texto extraído por OCR] ---\n\n{ocr_text}"
                     except Exception as ocr_error:
-                        st.error(f"Error de OCR en página {page_num}. Error: {ocr_error}")
+                        st.error(f"Error de OCR en página {page_num}. Asegúrate de que Tesseract esté instalado y 'spa' (español) esté disponible. Error: {ocr_error}")
                         full_text += f"\n\n--- PÁGINA {page_num} ({file.name}) [ERROR DE OCR] ---\n\n"
                 
                 else:
+                    # Es un PDF digital, usar el texto extraído
                     full_text += f"\n\n--- PÁGINA {page_num} ({file.name}) [Texto digital] ---\n\n{text}"
             
             contexto_completo += f"\n\n=== INICIO DOCUMENTO: {file.name} ===\n{full_text}\n=== FIN DOCUMENTO: {file.name} ===\n\n"
@@ -396,13 +403,13 @@ def crear_reporte_doc(informe_texto):
 st.title("🤖 Asistente de Asesoría Previsional (IA)")
 st.write("Carga todos los documentos de tu cliente (SCOMP, Cartolas, APV, etc.) para generar un informe de asesoría consolidado.")
 
-# [INICIO BLOQUE MODIFICADO] - Lógica de estado simplificada
+# --- Estados de Sesión ---
 if 'contexto_documentos' not in st.session_state:
     st.session_state.contexto_documentos = None
 # Esta es la ÚNICA variable que guarda el texto del informe
 if 'informe_actual' not in st.session_state:
     st.session_state.informe_actual = None
-# [FIN BLOQUE MODIFICADO]
+# -------------------------
 
 uploaded_files = st.file_uploader(
     "1. Cargar antecedentes del cliente (PDF)", 
@@ -432,14 +439,12 @@ if uploaded_files:
                 )
             
             if analisis_resultado:
-                # [INICIO BLOQUE MODIFICADO]
                 st.session_state.informe_actual = analisis_resultado # Guarda el análisis (1-5)
-                # [FIN BLOQUE MODIFICADO]
                 st.success("Análisis (Secciones 1-5) generado. Ya puedes modificarlo o añadir la recomendación.")
             else:
                 st.error("No se pudo generar el análisis.")
 
-# [INICIO BLOQUE MODIFICADO] - Lógica de Refresco (Sidebar)
+# --- Lógica de Refresco (Sidebar) ---
 # Este botón ahora funciona si el informe_actual (Sec 1-5) existe
 if st.sidebar.button("Refrescar Informe con Modificaciones"):
     if st.session_state.informe_actual and st.session_state.instrucciones_mod:
@@ -465,10 +470,8 @@ if st.sidebar.button("Refrescar Informe con Modificaciones"):
         st.sidebar.warning("Debes generar el 'Análisis de Datos' (Sección 1-5) primero.")
     else:
         st.sidebar.warning("Escribe alguna instrucción de modificación en la caja de texto.")
-# [FIN BLOQUE MODIFICADO]
 
 
-# [INICIO BLOQUE MODIFICADO] - La app principal ahora se basa en un solo estado
 # --- PASO 2 y 3: Mostrar Informe, Pedir Recomendación y Descargar ---
 if st.session_state.informe_actual:
     
@@ -508,6 +511,10 @@ if st.session_state.informe_actual:
                 # --- Limpiar la caja de texto para evitar duplicados ---
                 st.session_state.instrucciones_rec = "" 
                 st.success("Recomendación añadida. Ya puedes modificar el informe completo o descargarlo.")
+                
+                # --- LA CORRECCIÓN ---
+                st.rerun() # <-- Esto aplica la limpieza de la caja de texto
+                
             else:
                 st.error("No se pudo generar la recomendación.")
         elif not instrucciones_texto:
@@ -533,4 +540,3 @@ if st.session_state.informe_actual:
     except Exception as e:
         st.error(f"Error al generar el archivo de descarga: {e}")
         st.exception(e)
-# [FIN BLOQUE MODIFICADO]
