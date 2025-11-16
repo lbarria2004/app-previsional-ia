@@ -476,6 +476,8 @@ if st.sidebar.button("Refrescar Informe con Modificaciones"):
 
 
 # --- PASO 2 y 3: Mostrar Informe, Pedir Recomendación y Descargar ---
+# [INICIO BLOQUE CORREGIDO]
+# Esta sección ahora se muestra solo si el informe_actual existe.
 if st.session_state.informe_actual:
     
     st.subheader("Vista Previa del Informe Actual")
@@ -483,6 +485,7 @@ if st.session_state.informe_actual:
     
     st.divider()
     st.subheader("2. Instrucciones para la Recomendación Final (Sección 6)")
+    # Este widget se dibuja aquí
     st.text_area(
         "Escriba sus instrucciones para la recomendación:", 
         key="instrucciones_rec", 
@@ -546,3 +549,6 @@ if st.session_state.informe_actual:
     except Exception as e:
         st.error(f"Error al generar el archivo de descarga: {e}")
         st.exception(e)
+
+# [FIN BLOQUE CORREGIDO]
+# La línea que daba error (st.session_state.instrucciones_rec = "") ya no está aquí
