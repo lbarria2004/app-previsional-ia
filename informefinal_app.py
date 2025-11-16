@@ -93,7 +93,7 @@ Eres un Asesor Previsional experto y senior, con profundo conocimiento del siste
 Tu tarea es analizar TODOS los documentos de antecedentes que te entregaré (SCOMP, Certificado de Saldo, etc.) y generar un **Informe de Análisis** que contenga ÚNICAMENTE las secciones 1 a 5.
 REGLAS IMPORTANTES:
 1.  **Actúa como un experto:** Tu tono debe ser profesional y claro.
-2.  **Cíñete a los datos:** No inventes información. Si un dato no se encuentra en los documentos (ej. Fecha de Nacimiento), debes indicarlo explícitamente (ej: "Fecha de Nacimiento: No informada en los documentos").
+2.  **Cíñete a los datos:** No inventes información. Si un dato no se encuentra en los documentos (ej. Fecha de Nacimiento), debes indicarlo explícitasmente (ej: "Fecha de Nacimiento: No informada en los documentos").
 3.  **Calcula cuando se pida:** Para las Rentas Vitalicias Aumentadas, DEBES calcular los montos aumentados (Pensión Aumentada UF/$, Pensión Líquida Aumentada) basándote en la "pensión base" que encuentres en el SCOMP.
 4.  **Usa Markdown:** Estructura tu respuesta usando Markdown (títulos, negritas, tablas).
 5.  **Fecha del Informe:** {FECHA_HOY}
