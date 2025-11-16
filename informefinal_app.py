@@ -490,7 +490,6 @@ if st.sidebar.button("Nuevo Informe"):
     st.session_state.contexto_documentos = None
     
     # Limpia las cajas de texto
-    st.session_state.instrucciones_mod = ""
     if 'instrucciones_rec' in st.session_state:
         st.session_state.instrucciones_rec = ""
     
