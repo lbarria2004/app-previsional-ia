@@ -12,6 +12,7 @@ import pytesseract
 from PIL import Image
 # -------------------------------
 
+
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(layout="wide", page_title="Asesor Previsional IA")
 
@@ -26,7 +27,6 @@ instrucciones_mod = st.sidebar.text_area(
     key="instrucciones_mod"
 )
 
-# El botón "Refrescar" se definirá en la lógica principal
 # -------------------------------
 
 
@@ -87,7 +87,7 @@ def leer_pdfs_cargados(files):
             st.error(f"Error al leer {file.name}: {e}")
     return contexto_completo
 
-# === PROMPT PASO 1: ANÁLISIS (SECCIONES 1-5) ===
+# === PROMPT PASO 1: ANÁLISIS (SECCIONES 1-5) - SIN COMISIONES AFP ---
 PROMPT_ANALISIS = """
 Eres un Asesor Previsional experto y senior, con profundo conocimiento del sistema de pensiones chileno (AFP, SCOMP, PGU, APV, etc.).
 Tu tarea es analizar TODOS los documentos de antecedentes que te entregaré (SCOMP, Certificado de Saldo, etc.) y generar un **Informe de Análisis** que contenga ÚNICAMENTE las secciones 1 a 5.
@@ -99,6 +99,7 @@ REGLAS IMPORTANTES:
 5.  **Fecha del Informe:** {FECHA_HOY}
 6.  **NO INCLUYAS la Sección 6 (Recomendación Final).** Termina el informe después de la Sección 5.
 7.  **Formato de Títulos:** Usa '##' para Secciones (ej. ## 1) Antecedentes) y '###' para Subsecciones (ej. ### Certificado de Saldos). Usa '####' para los títulos de las modalidades (ej. #### a) Retiro programado).
+8.  **NO INCLUIR COMISIONES AFP:** No incluyas la columna "Comisión AFP" ni ninguna nota explicativa sobre los porcentajes de comisión en la sección de Retiro Programado. Calcula la pensión líquida solo con el descuento de salud (7%).
 ---
 TEXTO EXTRAÍDO DE LOS DOCUMENTOS DEL CLIENTE (SCOMP, CARTOLAS, ETC.):
 {CONTEXTO_DOCUMENTOS}
@@ -135,12 +136,12 @@ Basado ÚNICAMENTE en los documentos, genera el informe con la siguiente estruct
 **Descripción:** Es una modalidad de pensión que se paga con cargo a la Cuenta de Capitalización Individual del afiliado. La pensión se recalcula anualmente, considerando el saldo remanente, la expectativa de vida del afiliado y de sus beneficiarios, y la rentabilidad del fondo. Por lo tanto, la pensión puede subir o bajar cada año.
 **Cuadro de resultados:**
 [Generar tabla Markdown con TODAS las AFP del SCOMP]
-| AFP | Pensión en UF | Pensión Bruta en $| Descuento 7% Salud$ | Descuento Comisión AFP $ | Pensión Líquida en $ |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| [AFP 1] | [uf] | [bruta] | [salud] | [comision] | [liquida] |
-| [AFP 2] | [uf] | [bruta] | [salud] | [comision] | [liquida] |
-| ... | ... | ... ... | ... | ... |
-**Nota:** La oferta de Retiro Programado de su AFP de Origen ([Nombre AFP Origen]) es de **[UF] UF** al mes, lo que equivale a una Pensión Bruta de **$[Monto $]**. Con el descuento de salud ($[Monto Salud]) y la comisión de la AFP ($[Monto Comisión]), la pensión líquida aproximada es de **$[Monto Líquido]** para el primer año.
+| AFP | Pensión en UF | Pensión Bruta en $| Descuento 7% Salud$ | Pensión Líquida en $ |
+| :--- | :--- | :--- | :--- | :--- |
+| [AFP 1] | [uf] | [bruta] | [salud] | [liquida] |
+| [AFP 2] | [uf] | [bruta] | [salud] | [liquida] |
+| ... | ... | ... | ... | ... |
+**Nota:** La oferta de Retiro Programado de su AFP de Origen ([Nombre AFP Origen]) es de **[UF] UF** al mes, lo que equivale a una Pensión Bruta de **$[Monto $]**. Con el descuento de salud ($[Monto Salud]), la pensión líquida aproximada es de **$[Monto Líquido]** para el primer año.
 #### b) Renta Vitalicia
 **Renta Vitalicia Inmediata Simple**
 **Descripción:** Es un contrato con una Compañía de Seguros, donde el afiliado traspasa la totalidad de su saldo para recibir una pensión mensual en UF fija y de por vida. El monto no varía, independiente de la rentabilidad del mercado o de la expectativa de vida.
@@ -154,7 +155,7 @@ Basado ÚNICAMENTE en los documentos, genera el informe con la siguiente estruct
 **Renta Vitalicia Aumentada**
 **Descripción:** La "Cláusula de Aumento Temporal de Pensión" es una cobertura adicional que permite duplicar (aumentar en un 100%) el monto de la pensión durante un período determinado al inicio. Una vez que este período finaliza, la pensión vuelve a su monto base original, el cual es fijo en UF y se paga de por vida.
 [Generar una sección para CADA modalidad de Renta Vitalicia Aumentada encontrada en el SCOMP, ej: "Renta Vitalicia Aumentada 100% por 36 Meses"]
-**[Título de la Modalidad, ej: Renta Vitalicia Aumentada 100% por 36 Meses]**
+**[Título de la Modalidad, ej: Renta Vitalicia Aumentada 100% por 36 Meses, Garantizado 180 meses.]**
 **Cuadro de resultados (4 mejores ofertas):**
 | Compañía | Pensión Aumentada en UF | Pensión Aumentada en $| Descuento 7% Salud$ | Pensión Líquida Período Aumentado | Pensión Después de Aumento en UF (Base) |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -257,7 +258,7 @@ def generar_analisis_ia(contexto, api_key):
         )
         
         generation_config = {"temperature": 0.1, "response_mime_type": "text/plain"}
-        request_options = {"timeout": 300} 
+        request_options = {"timeout": 300}  
         
         response = model.generate_content(
             prompt_completo,
@@ -340,6 +341,7 @@ def crear_reporte_doc(informe_texto):
     table = None
     
     for line in informe_texto.split('\n'):
+        # Limpia asteriscos para evitar problemas en Word
         line_stripped = line.strip().replace('*', '')
 
         if line.strip().startswith('|') and line.strip().endswith('|'):
@@ -370,11 +372,11 @@ def crear_reporte_doc(informe_texto):
                             run = row_cells[i].paragraphs[0].runs[0]
                             run.font.name = 'Roboto'
                 except Exception as e:
-                     st.warning(f"Error al añadir fila a tabla DOCX: {e}")
+                   st.warning(f"Error al añadir fila a tabla DOCX: {e}")
         
         else:
             if in_table:
-                doc.add_paragraph() 
+                doc.add_paragraph()  
                 in_table = False
                 table = None
 
@@ -467,6 +469,11 @@ if st.sidebar.button("Refrescar Informe con Modificaciones"):
             if informe_modificado:
                 st.session_state.informe_actual = informe_modificado # Sobrescribe el informe
                 st.success("Informe refrescado.")
+                
+                # --- CORRECCIÓN (Limpiar caja de texto) ---
+                st.rerun()
+                # --- FIN CORRECCIÓN ---
+                
             else:
                 st.error("No se pudo modificar el informe.")
     elif not st.session_state.informe_actual:
@@ -475,8 +482,24 @@ if st.sidebar.button("Refrescar Informe con Modificaciones"):
         st.sidebar.warning("Escribe alguna instrucción de modificación en la caja de texto.")
 
 
+# --- Botón "Nuevo Informe" ---
+st.sidebar.divider()
+if st.sidebar.button("Nuevo Informe"):
+    # Borra los datos principales del informe y los documentos
+    st.session_state.informe_actual = None
+    st.session_state.contexto_documentos = None
+    
+    # Limpia las cajas de texto
+    st.session_state.instrucciones_mod = ""
+    if 'instrucciones_rec' in st.session_state:
+        st.session_state.instrucciones_rec = ""
+    
+    st.success("Memoria limpiada. Puedes cargar un nuevo informe.")
+    st.rerun()
+# --- FIN Botón "Nuevo Informe" ---
+
+
 # --- PASO 2 y 3: Mostrar Informe, Pedir Recomendación y Descargar ---
-# [INICIO BLOQUE CORREGIDO]
 # Esta sección ahora se muestra solo si el informe_actual existe.
 if st.session_state.informe_actual:
     
@@ -515,14 +538,13 @@ if st.session_state.informe_actual:
                 # --- Lógica de AÑADIR ---
                 st.session_state.informe_actual += "\n\n" + recomendacion_resultado
                 
-                # --- Limpiar la caja de texto para evitar duplicados ---
-                # ESTA LÍNEA ESTÁ AHORA DENTRO DEL IF, ESTA ES LA CORRECCIÓN
-                st.session_state.instrucciones_rec = "" 
+                # --- CORRECCIÓN (Limpiar caja de texto) ---
                 
                 st.success("Recomendación añadida. Ya puedes modificar el informe completo o descargarlo.")
                 
-                # --- LA CORRECCIÓN ---
-                st.rerun() # <-- Esto aplica la limpieza de la caja de texto
+                # Refresca la página
+                st.rerun() 
+                # --- FIN CORRECCIÓN ---
                 
             else:
                 st.error("No se pudo generar la recomendación.")
@@ -549,7 +571,5 @@ if st.session_state.informe_actual:
     except Exception as e:
         st.error(f"Error al generar el archivo de descarga: {e}")
         st.exception(e)
-# [FIN BLOQUE CORREGIDO]
 
-# La línea de error "st.session_state.instrucciones_rec = """ NO DEBE ESTAR AQUÍ.
-# Como puedes ver, no está en este código.
+# No debe haber ninguna línea "st.session_state.instrucciones_..." aquí al final.
