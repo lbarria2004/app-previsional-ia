@@ -52,7 +52,8 @@ def leer_pdfs_cargados(files):
                 page_num = i + 1
                 
                 # 1. Intentar extracción de texto digital
-                text = page.get_text("text")
+                # sort=True intenta ordenar el texto por posición (útil para tablas)
+                text = page.get_text("text", sort=True)
                 
                 # 2. Heurística: Si el texto es muy corto, probablemente es escaneado
                 if len(text.strip()) < 150: # Umbral de 150 caracteres
@@ -99,7 +100,11 @@ REGLAS IMPORTANTES:
 5.  **Fecha del Informe:** {FECHA_HOY}
 6.  **NO INCLUYAS la Sección 6 (Recomendación Final).** Termina el informe después de la Sección 5.
 7.  **Formato de Títulos:** Usa '##' para Secciones (ej. ## 1) Antecedentes) y '###' para Subsecciones (ej. ### Certificado de Saldos). Usa '####' para los títulos de las modalidades (ej. #### a) Retiro programado).
-8.  **NO INCLUIR COMISIONES AFP:** No incluyas la columna "Comisión AFP" ni ninguna nota explicativa sobre los porcentajes de comisión en la sección de Retiro Programado. Calcula la pensión líquida solo con el descuento de salud (7%).
+8.  **NO INCLUIR COMISIONES AFP:** No incluyas la columna "Comisión AFP".
+9.  **IMPORTANTE - ALINEACIÓN DE TABLAS:** Al extraer datos de tablas (especialmente SCOMP), ten mucho cuidado de **asociar correctamente cada AFP con SU monto**.
+    *   Si el texto extraído muestra primero una lista de AFPs y luego una lista de montos, **compagínalos en el orden en que aparecen**.
+    *   Verifica fila por fila. No mezcles la pensión de una AFP con el nombre de otra.
+    *   Si hay montos en UF y Pesos, asegúrate de poner cada uno en su columna correcta.
 ---
 TEXTO EXTRAÍDO DE LOS DOCUMENTOS DEL CLIENTE (SCOMP, CARTOLAS, ETC.):
 {CONTEXTO_DOCUMENTOS}
