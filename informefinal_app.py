@@ -106,11 +106,13 @@ REGLAS IMPORTANTES:
     *   Si el texto extraído muestra primero una lista de AFPs y luego una lista de montos, **compagínalos en el orden en que aparecen**.
     *   Verifica fila por fila. No mezcles la pensión de una AFP con el nombre de otra.
     *   Si hay montos en UF y Pesos, asegúrate de poner cada uno en su columna correcta.
+10.  **IMPOTANTE - CHAIN OF THOUGHT (LISTAR MODALIDADES):** Antes de generar el informe, analiza internamente todas las modalidades de pensión presentes en el SCOMP (ej. Renta Vitalicia Inmediata con Retiro, Sin Retiro, Garantizada 120, 240, etc.). Asegúrate de no omitir NINGUNA en el informe final, especialmente las Garantizadas.
 ---
 TEXTO EXTRAÍDO DE LOS DOCUMENTOS DEL CLIENTE (SCOMP, CARTOLAS, ETC.):
 {CONTEXTO_DOCUMENTOS}
 ---
 Basado ÚNICAMENTE en los documentos, genera el informe con la siguiente estructura exacta (Secciones 1 a 5):
+
 ## Informe final de Asesoría Previsional
 ### 1) Antecedentes del afiliado y certificado SCOMP
 * **Nombre Completo:** [Extraer]
@@ -208,6 +210,26 @@ INSTRUCCIONES DEL USUARIO PARA MODIFICAR:
 "{INSTRUCCIONES_MODIFICACION}"
 ---
 INFORME MODIFICADO:
+"""
+
+# === PROMPT PASO 4: VERIFICACIÓN (AUDITORÍA) ===
+PROMPT_VERIFICACION = """
+Eres un Auditor de Calidad (QC) experto en informes previsionales. Tu misión es revisar que el "Informe Generado" sea fiel a los "Documentos Originales".
+NO debes reescribir el informe, solo auditarlo.
+
+Debes verificar DOS cosas críticas:
+1.  **Integridad de Modalidades:** ¿Están TODAS las modalidades de pensión del SCOMP en el informe? (Ej. Si el SCOMP trae "Renta Vitalicia Garantizada a 240 meses", ¿está esa sección en el informe?). Es común que se omitan las Garantizadas, revisa con atención.
+2.  **Exactitud de Montos:** ¿Los montos en UF de las ofertas coinciden con el documento original?
+
+Documentos Originales (Texto extraído):
+{CONTEXTO_ORIGINAL}
+---
+Informe Generado:
+{INFORME_GENERADO}
+---
+Respuesta del Auditor:
+Si todo está correcto y completo, responde EXACTAMENTE: "APROBADO".
+Si encuentras errores u omisiones (especialmente modalidades faltantes), responde: "RECHAZADO: [Lista breve de lo que falta o está mal]".
 """
 
 @st.cache_data(show_spinner=False)
@@ -316,6 +338,32 @@ def generar_recomendacion_ia(analisis_previo, instrucciones, api_key):
         st.error(f"Error al generar la recomendación con IA: {e}")
         st.exception(e)
         return None
+
+@st.cache_data(show_spinner=False)
+def verificar_consistencia_ia(contexto, informe_generado, api_key):
+    """
+    Llama a la API para auditar el informe generado.
+    """
+    if not api_key: return None
+    
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-pro-latest')
+        
+        prompt_completo = PROMPT_VERIFICACION.format(
+            CONTEXTO_ORIGINAL=contexto,
+            INFORME_GENERADO=informe_generado
+        )
+        
+        generation_config = {"temperature": 0.0, "response_mime_type": "text/plain"}
+        
+        response = model.generate_content(prompt_completo, generation_config=generation_config)
+        return response.text
+    except Exception as e:
+        # Si falla la auditoría, no bloqueamos el flujo, solo avisamos
+        print(f"Error en auditoría IA: {e}")
+        return None
+
 
 
 # --- 3. FUNCIONES DE DESCARGA (SOLO DOCX) ---
@@ -454,7 +502,26 @@ if uploaded_files:
             
             if analisis_resultado:
                 st.session_state.informe_actual = analisis_resultado # Guarda el análisis (1-5)
-                st.success("Análisis (Secciones 1-5) generado. Ya puedes modificarlo o añadir la recomendación.")
+                st.success("Análisis (Secciones 1-5) generado.")
+                
+                # --- AUTO-VERIFICACIÓN ---
+                with st.spinner("🔍 El Auditor Virtual está revisando la consistencia del informe..."):
+                    resultado_auditoria = verificar_consistencia_ia(
+                        st.session_state.contexto_documentos,
+                        analisis_resultado,
+                        final_api_key
+                    )
+                
+                if resultado_auditoria:
+                    if "APROBADO" in resultado_auditoria:
+                        st.success("✅ Auditoría Aprobada: El informe incluye todas las modalidades detectadas.")
+                    else:
+                        st.error("⚠️ Auditoría Detectó Posibles Omisiones:")
+                        st.warning(resultado_auditoria)
+                        st.info("Revisa si falta alguna modalidad importante (como RV Garantizada). Puedes usar el botón 'Refrescar Informe con Modificaciones' para pedirle a la IA que la agregue.")
+                # -------------------------
+
+                st.info("Ya puedes modificar el informe o añadir la recomendación.")
             else:
                 st.error("No se pudo generar el análisis.")
         elif not st.session_state.contexto_documentos:
@@ -591,4 +658,3 @@ if st.session_state.informe_actual:
         st.exception(e)
 
 # No debe haber ninguna línea "st.session_state.instrucciones_..." aquí al final.
-
