@@ -155,7 +155,16 @@ Basado ÚNICAMENTE en los documentos, genera el informe con la siguiente estruct
 | ... | ... | ... | ... | ... |
 **Nota:** La oferta de Retiro Programado de su AFP de Origen ([Nombre AFP]) es de **[UF] UF** al mes, lo que equivale a una Pensión Bruta de **$[MontoBruto]**. Con el descuento de salud 7% ($[MontoSalud]) y la comisión de administración de la AFP del [Comision]% ($[MontoComision]), la pensión líquida aproximada es de **$[MontoLiquido]** para el primer año.
 *(Instrucción: Busca el % de comisión de la AFP de origen en el certificado de saldo o oferta interna. Calcula el monto en pesos [Bruta * %]. Resta Salud y Comisión a la Bruta para obtener la Líquida).*
-#### b) Renta Vitalicia
+
+[INSTRUCCIÓN CLAVE: Si en el SCOMP aparece "Pensión de Referencia Garantizada por ley" (común en Invalidez), AGREGA AQUÍ LA SIGUIENTE SECCIÓN b). Si no, salta a Renta Vitalicia.]
+
+#### b) Pensión de Referencia Garantizada por ley
+**Descripción:** Por ley las Compañías de Seguros de Vida indicadas más abajo, garantizan una Pensión de referencia con su saldo obligatorio hasta la fecha de vigencia indicada. El monto de la Pensión garantizada, en renta vitalicia inmediata simple, será el siguiente:
+**Cuadro de resultados:**
+[Generar tabla con los datos de Referencia Garantizada del SCOMP]
+
+#### [Si hubo sección b, esta es c), sino b)] Renta Vitalicia
+
 **Renta Vitalicia Inmediata Simple**
 **Descripción:** Es un contrato con una Compañía de Seguros, donde el afiliado traspasa la totalidad de su saldo para recibir una pensión mensual en UF fija y de por vida. El monto no varía, independiente de la rentabilidad del mercado o de la expectativa de vida.
 **Cuadro de resultados (4 mejores ofertas):**
@@ -165,6 +174,17 @@ Basado ÚNICAMENTE en los documentos, genera el informe con la siguiente estruct
 | [Cia 2] | [uf] | [bruta] | [salud] | [liquida] |
 | [Cia 3] | [uf] | [bruta] | [salud] | [liquida] |
 | [Cia 4] | [uf] | [bruta] | [salud] | [liquida] |
+
+[INSTRUCCIÓN CRÍTICA: Debes generar AQUI una sección para CADA modalidad de "Renta Vitalicia Inmediata Garantizada" encontrada en el SCOMP (ej. 120 meses, 240 meses). NO LAS OMITAS por ningún motivo. Si hay varias rentas garantizadas, haz una tabla separada para cada una.]
+
+**Renta Vitalicia Inmediata Garantizada [X] Meses** (Repetir para cada periodo encontrado)
+**Descripción:** En esta modalidad, si el asegurado fallece durante el periodo garantizaro (ej. [X] meses), los beneficiarios designados recibirán el 100% de la pensión hasta cumplir dicho plazo.
+**Cuadro de resultados (4 mejores ofertas):**
+| Compañía de Seguros | Pensión en UF | Pensión Bruta $| Descuento 7% Salud$ | Pensión Líquida $ |
+| :--- | :--- | :--- | :--- | :--- |
+| [Cia 1] | [uf] | [bruta] | [salud] | [liquida] |
+| ... | ... | ... | ... | ... |
+
 **Renta Vitalicia Aumentada**
 **Descripción:** La "Cláusula de Aumento Temporal de Pensión" es una cobertura adicional que permite duplicar (aumentar en un 100%) el monto de la pensión durante un período determinado al inicio. Una vez que este período finaliza, la pensión vuelve a su monto base original, el cual es fijo en UF y se paga de por vida.
 [Generar una sección para CADA modalidad de Renta Vitalicia Aumentada encontrada en el SCOMP, ej: "Renta Vitalicia Aumentada 100% por 36 Meses"]
@@ -218,7 +238,9 @@ Eres un Auditor de Calidad (QC) experto en informes previsionales. Tu misión es
 NO debes reescribir el informe, solo auditarlo.
 
 Debes verificar DOS cosas críticas:
-1.  **Integridad de Modalidades:** ¿Están TODAS las modalidades de pensión del SCOMP en el informe? (Ej. Si el SCOMP trae "Renta Vitalicia Garantizada a 240 meses", ¿está esa sección en el informe?). Es común que se omitan las Garantizadas, revisa con atención.
+1.  **Integridad de Modalidades:** ¿Están TODAS las modalidades de pensión del SCOMP en el informe?
+    *   **CRÍTICO:** Verifica que se incluyan las **"Renta Vitalicia Inmediata Garantizada"** (ej. 120, 240 meses) si aparecen en el original. Es el error más común.
+    *   Si es Invalidez, verifica la "Pensión de Referencia Garantizada".
 2.  **Exactitud de Montos:** ¿Los montos en UF de las ofertas coinciden con el documento original?
 
 Documentos Originales (Texto extraído):
