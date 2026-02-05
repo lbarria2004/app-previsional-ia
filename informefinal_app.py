@@ -5,6 +5,7 @@ from docx.shared import Pt
 import io
 import google.generativeai as genai
 from datetime import datetime
+import re
 
 # --- IMPORTS PARA OCR ---
 import fitz  # PyMuPDF
@@ -146,7 +147,13 @@ Basado ÚNICAMENTE en los documentos, genera el informe con la siguiente estruct
 | [AFP 1] | [uf] | [bruta] | [salud] | [liquida] |
 | [AFP 2] | [uf] | [bruta] | [salud] | [liquida] |
 | ... | ... | ... | ... | ... |
-**Nota:** La oferta de Retiro Programado de su AFP de Origen ([Nombre AFP Origen]) es de **[UF] UF** al mes, lo que equivale a una Pensión Bruta de **$[Monto $]**. Con el descuento de salud ($[Monto Salud]), la pensión líquida aproximada es de **$[Monto Líquido]** para el primer año.
+| [AFP 2] | [uf] | [bruta] | [salud] | [liquida] |
+| ... | ... | ... | ... | ... |
+**Nota:** La oferta de Retiro Programado de su AFP de Origen ([Nombre AFP Origen]) es de **[UF] UF** al mes, lo que equivale a una Pensión Bruta de **$[Monto $]**.
+A este monto se le debe descontar:
+1.  **7% de Salud:** $[Monto Salud]
+2.  **Comisión AFP ([Extraer % Comisión] del saldo):** $[Calcula Comisión en $] (aprox).
+**Pensión Líquida Estimada:** **$[Calcula: Bruta - Salud - Comision]** (para el primer año).
 #### b) Renta Vitalicia
 **Renta Vitalicia Inmediata Simple**
 **Descripción:** Es un contrato con una Compañía de Seguros, donde el afiliado traspasa la totalidad de su saldo para recibir una pensión mensual en UF fija y de por vida. El monto no varía, independiente de la rentabilidad del mercado o de la expectativa de vida.
@@ -564,10 +571,18 @@ if st.session_state.informe_actual:
         
         doc_data = crear_reporte_doc(informe_completo_texto)
         
+        # Extraer nombre para el archivo
+        nombre_cliente = "Cliente"
+        match = re.search(r'\*\*Nombre Completo:\*\*\s*(.*)', informe_completo_texto)
+        if match:
+            nombre_cliente = match.group(1).strip().replace("/", "-").replace("\\", "-")
+        
+        file_name_download = f"Informe_final_Asesoria_Previsional_{nombre_cliente}.docx"
+
         st.download_button(
             label="📄 Descargar Informe en DOCX (Compatible con Word/Google Docs)",
             data=doc_data,
-            file_name="Informe_final_Asesoria_Previsional.docx",
+            file_name=file_name_download,
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             use_container_width=True
         )
