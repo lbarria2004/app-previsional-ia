@@ -101,7 +101,7 @@ REGLAS IMPORTANTES:
 5.  **Fecha del Informe:** {FECHA_HOY}
 6.  **NO INCLUYAS la Sección 6 (Recomendación Final).** Termina el informe después de la Sección 5.
 7.  **Formato de Títulos:** Usa '##' para Secciones (ej. ## 1) Antecedentes) y '###' para Subsecciones (ej. ### Certificado de Saldos). Usa '####' para los títulos de las modalidades (ej. #### a) Retiro programado).
-8.  **NO INCLUIR COMISIONES AFP:** No incluyas la columna "Comisión AFP".
+8.  **NO INCLUIR COMISIONES AFP (SOLO EN TABLA):** En la tabla de Retiro Programado, NO incluyas la columna "Comisión AFP". Sin embargo, SÍ debes considerar la comisión para el cálculo en la "Nota" explicativa debajo de la tabla.
 9.  **IMPORTANTE - ALINEACIÓN DE TABLAS:** Al extraer datos de tablas (especialmente SCOMP), ten mucho cuidado de **asociar correctamente cada AFP con SU monto**.
     *   Si el texto extraído muestra primero una lista de AFPs y luego una lista de montos, **compagínalos en el orden en que aparecen**.
     *   Verifica fila por fila. No mezcles la pensión de una AFP con el nombre de otra.
@@ -149,11 +149,10 @@ Basado ÚNICAMENTE en los documentos, genera el informe con la siguiente estruct
 | ... | ... | ... | ... | ... |
 | [AFP 2] | [uf] | [bruta] | [salud] | [liquida] |
 | ... | ... | ... | ... | ... |
-**Nota:** La oferta de Retiro Programado de su AFP de Origen ([Nombre AFP Origen]) es de **[UF] UF** al mes, lo que equivale a una Pensión Bruta de **$[Monto $]**.
-A este monto se le debe descontar:
-1.  **7% de Salud:** $[Monto Salud]
-2.  **Comisión AFP ([Extraer % Comisión] del saldo):** $[Calcula Comisión en $] (aprox).
-**Pensión Líquida Estimada:** **$[Calcula: Bruta - Salud - Comision]** (para el primer año).
+| [AFP 2] | [uf] | [bruta] | [salud] | [liquida] |
+| ... | ... | ... | ... | ... |
+**Nota:** La oferta de Retiro Programado de su AFP de Origen ([Nombre AFP]) es de **[UF] UF** al mes, lo que equivale a una Pensión Bruta de **$[MontoBruto]**. Con el descuento de salud 7% ($[MontoSalud]) y la comisión de administración de la AFP del [Comision]% ($[MontoComision]), la pensión líquida aproximada es de **$[MontoLiquido]** para el primer año.
+*(Instrucción: Busca el % de comisión de la AFP de origen en el certificado de saldo o oferta interna. Calcula el monto en pesos [Bruta * %]. Resta Salud y Comisión a la Bruta para obtener la Líquida).*
 #### b) Renta Vitalicia
 **Renta Vitalicia Inmediata Simple**
 **Descripción:** Es un contrato con una Compañía de Seguros, donde el afiliado traspasa la totalidad de su saldo para recibir una pensión mensual en UF fija y de por vida. El monto no varía, independiente de la rentabilidad del mercado o de la expectativa de vida.
@@ -592,3 +591,4 @@ if st.session_state.informe_actual:
         st.exception(e)
 
 # No debe haber ninguna línea "st.session_state.instrucciones_..." aquí al final.
+
