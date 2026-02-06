@@ -11,7 +11,7 @@ import re
 import fitz  # PyMuPDF
 import pytesseract
 from PIL import Image
-from contract_utils import load_contract_template, generate_contract_content_ia, create_contract_docx, TEMPLATE_VEJEZ, TEMPLATE_SOBREVIVENCIA
+from contract_utils import get_template_path, extract_client_data_from_markdown, fill_contract_template, TEMPLATE_VEJEZ_DOCX, TEMPLATE_SOBREVIVENCIA_DOCX
 
 
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
@@ -597,52 +597,72 @@ if st.sidebar.button("Nuevo Informe"):
     st.rerun()
 # --- FIN Botón "Nuevo Informe" ---
 
-# --- Botón "Generar Contrato" ---
+# --- Botón "Generar Contrato" (VERSIÓN DOCX + FORMULARIO) ---
 st.sidebar.divider()
-st.sidebar.subheader("Generar Contrato")
+st.sidebar.subheader("Generar Contrato (DOCX)")
 tipo_contrato_sel = st.sidebar.selectbox("Tipo de Contrato", ["Vejez o Invalidez", "Sobrevivencia"])
 
-if st.sidebar.button("Generar contrato de Asesoría"):
-    if st.session_state.informe_actual:
-        try:
-            final_api_key = st.secrets["api_key"]
-        except:
-             st.error("API Key no configurada.")
-             final_api_key = None
+# Lógica del Formulario
+if st.session_state.informe_actual:
+    # 1. Intentar extraer datos automáticamente del informe
+    if 'contract_data' not in st.session_state or st.sidebar.button("Recargar Datos de Informe"):
+        st.session_state.contract_data = extract_client_data_from_markdown(st.session_state.informe_actual)
+    
+    st.sidebar.write("Completa los datos para el contrato:")
+    
+    with st.sidebar.form("contract_form"):
+        # Campos de texto editables (pre-llenados con lo extraído)
+        # Nombres de variables coincidentes con lo que BUSCAREMOS en el DOCX para reemplazar
+        # Si el DOCX no tiene placeholders, buscaremos estos textos literales o los insertaremos.
+        # Definiremos un estándar aquí: Reemplazar "____________________" si es un campo vacío, o usar placeholders si el usuario los pone.
+        # Dado que no sabemos, pediremos input y trataremos de reemplazar.
         
-        if final_api_key:
-            # 1. Seleccionar plantilla correcta
-            if tipo_contrato_sel == "Vejez o Invalidez":
-                template_file = TEMPLATE_VEJEZ
-            else:
-                template_file = TEMPLATE_SOBREVIVENCIA
+        c_nombre = st.text_input("Nombre Completo", value=st.session_state.contract_data.get("Nombre Completo", ""))
+        c_rut = st.text_input("RUT", value=st.session_state.contract_data.get("RUT", ""))
+        c_direccion = st.text_input("Dirección", value=st.session_state.contract_data.get("Dirección", ""))
+        c_comuna = st.text_input("Comuna", value=st.session_state.contract_data.get("Comuna", ""))
+        c_telefono = st.text_input("Teléfono", value=st.session_state.contract_data.get("Teléfono", ""))
+        c_fecha = st.text_input("Fecha", value=datetime.now().strftime("%d/%m/%Y"))
+        
+        submitted = st.form_submit_button("Generar DOCX")
+        
+        if submitted:
+            # Preparar diccionario de reemplazos
+            # Claves que el usuario debe poner en su DOCX o keywords comunes
+            # Vamos a intentar reemplazar AMBOS: placeholders {{KEY}} y texto literal si coincide
+            replacements = {
+                "{{NOMBRE}}": c_nombre,
+                "{{RUT}}": c_rut,
+                "{{DIRECCION}}": c_direccion,
+                "{{COMUNA}}": c_comuna,
+                "{{TELEFONO}}": c_telefono,
+                "{{FECHA}}": c_fecha,
+                # Fallbacks sin llaves por si acaso
+                "CLIENTE_NOMBRE": c_nombre,
+                "CLIENTE_RUT": c_rut,
+                "CLIENTE_DIRECCION": c_direccion,
+            }
             
-            with st.spinner("Leyendo plantilla y generando contrato..."):
-                # 2. Cargar texto de la plantilla
-                template_text = load_contract_template(template_file)
+            template_file = get_template_path(tipo_contrato_sel)
+            
+            with st.spinner("Generando contrato..."):
+                docx_bytes = fill_contract_template(template_file, replacements)
                 
-                # 3. Generar contenido con IA
-                # Usamos el informe actual (Markdown) como fuente de datos del cliente
-                cliente_data = st.session_state.informe_actual
-                contract_content = generate_contract_content_ia(cliente_data, template_text, final_api_key)
-                
-                if contract_content:
-                    # 4. Crear DOCX
-                    docx_data = create_contract_docx(contract_content)
-                    
-                    # 5. Guardar en session state para descargar (opcional si queremos persistencia, o directo download btn)
-                    st.session_state['ultimo_contrato_docx'] = docx_data
-                    st.session_state['ultimo_contrato_name'] = f"Contrato_{tipo_contrato_sel.replace(' ', '_')}.docx"
-                    st.sidebar.success("Contrato generado con éxito.")
+                if isinstance(docx_bytes, tuple): # Error catch
+                     st.error(f"Error: {docx_bytes[1]}")
+                elif docx_bytes:
+                     st.session_state['ultimo_contrato_docx'] = docx_bytes
+                     st.session_state['ultimo_contrato_name'] = f"Contrato_Final_{c_nombre.split()[0]}.docx"
+                     st.success("¡Contrato Generado!")
                 else:
-                    st.sidebar.error("Error al generar el contenido del contrato.")
-            
-    else:
-        st.sidebar.warning("Debes generar el Análisis (Secciones 1-5) primero para tener los datos del cliente.")
+                    st.error("Error desconocido al generar.")
+
+else:
+    st.sidebar.info("Genera el análisis primero para precargar datos.")
 
 if 'ultimo_contrato_docx' in st.session_state:
     st.sidebar.download_button(
-        label="⬇️ Descargar Contrato DOCX",
+        label="⬇️ Descargar Contrato Final",
         data=st.session_state['ultimo_contrato_docx'],
         file_name=st.session_state['ultimo_contrato_name'],
         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
