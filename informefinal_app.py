@@ -11,7 +11,7 @@ import re
 import fitz  # PyMuPDF
 import pytesseract
 from PIL import Image
-# -------------------------------
+from contract_utils import load_contract_template, generate_contract_content_ia, create_contract_docx, TEMPLATE_VEJEZ, TEMPLATE_SOBREVIVENCIA
 
 
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
@@ -596,6 +596,58 @@ if st.sidebar.button("Nuevo Informe"):
     st.success("Memoria limpiada. Puedes cargar un nuevo informe.")
     st.rerun()
 # --- FIN Botón "Nuevo Informe" ---
+
+# --- Botón "Generar Contrato" ---
+st.sidebar.divider()
+st.sidebar.subheader("Generar Contrato")
+tipo_contrato_sel = st.sidebar.selectbox("Tipo de Contrato", ["Vejez o Invalidez", "Sobrevivencia"])
+
+if st.sidebar.button("Generar contrato de Asesoría"):
+    if st.session_state.informe_actual:
+        try:
+            final_api_key = st.secrets["api_key"]
+        except:
+             st.error("API Key no configurada.")
+             final_api_key = None
+        
+        if final_api_key:
+            # 1. Seleccionar plantilla correcta
+            if tipo_contrato_sel == "Vejez o Invalidez":
+                template_file = TEMPLATE_VEJEZ
+            else:
+                template_file = TEMPLATE_SOBREVIVENCIA
+            
+            with st.spinner("Leyendo plantilla y generando contrato..."):
+                # 2. Cargar texto de la plantilla
+                template_text = load_contract_template(template_file)
+                
+                # 3. Generar contenido con IA
+                # Usamos el informe actual (Markdown) como fuente de datos del cliente
+                cliente_data = st.session_state.informe_actual
+                contract_content = generate_contract_content_ia(cliente_data, template_text, final_api_key)
+                
+                if contract_content:
+                    # 4. Crear DOCX
+                    docx_data = create_contract_docx(contract_content)
+                    
+                    # 5. Guardar en session state para descargar (opcional si queremos persistencia, o directo download btn)
+                    st.session_state['ultimo_contrato_docx'] = docx_data
+                    st.session_state['ultimo_contrato_name'] = f"Contrato_{tipo_contrato_sel.replace(' ', '_')}.docx"
+                    st.sidebar.success("Contrato generado con éxito.")
+                else:
+                    st.sidebar.error("Error al generar el contenido del contrato.")
+            
+    else:
+        st.sidebar.warning("Debes generar el Análisis (Secciones 1-5) primero para tener los datos del cliente.")
+
+if 'ultimo_contrato_docx' in st.session_state:
+    st.sidebar.download_button(
+        label="⬇️ Descargar Contrato DOCX",
+        data=st.session_state['ultimo_contrato_docx'],
+        file_name=st.session_state['ultimo_contrato_name'],
+        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+# --- FIN Botón "Generar Contrato" ---
 
 
 # --- PASO 2 y 3: Mostrar Informe, Pedir Recomendación y Descargar ---
