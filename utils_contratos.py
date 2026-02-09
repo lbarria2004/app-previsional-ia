@@ -1,30 +1,63 @@
 import re
 import io
-import streamlit as st
-from docx import Document
-from datetime import datetime
+import logging
+from typing import Dict, Optional, Any
+from pathlib import Path
+from docx import Document  # type: ignore
+from docx.text.paragraph import Paragraph  # type: ignore
 
-# --- CONSTANTES DE PLANTILLAS DOCX ---
-TEMPLATE_VEJEZ_DOCX = "CONTRATO 2026 AP - PLANTILLA.docx" 
-TEMPLATE_SOBREVIVENCIA_DOCX = "CONTRATO 2026 sobrevivencia -  plantilla.docx"
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-def get_template_path(tipo):
-    if tipo == "Vejez o Invalidez":
-        return TEMPLATE_VEJEZ_DOCX
+# --- CONSTANTS ---
+# Using absolute paths or relative to the script location is safer
+BASE_DIR = Path(__file__).parent.resolve()
+TEMPLATE_OLD_AGE_FILENAME = "CONTRATO 2026 AP - PLANTILLA.docx"
+TEMPLATE_SURVIVORSHIP_FILENAME = "CONTRATO 2026 sobrevivencia -  plantilla.docx"
+
+def get_contract_template_path(contract_type: str) -> Path:
+    """
+    Returns the path to the DOCX template based on the contract type.
+    
+    Args:
+        contract_type: The type of contract (e.g., "Vejez o Invalidez").
+        
+    Returns:
+        Path object to the template file.
+        
+    Raises:
+        FileNotFoundError: If the template file does not exist.
+    """
+    if contract_type == "Vejez o Invalidez":
+        filename = TEMPLATE_OLD_AGE_FILENAME
     else:
-        return TEMPLATE_SOBREVIVENCIA_DOCX
+        filename = TEMPLATE_SURVIVORSHIP_FILENAME
+        
+    template_path = BASE_DIR / filename
+    
+    if not template_path.exists():
+        logger.error(f"Template not found at: {template_path}")
+        raise FileNotFoundError(f"Template file not found: {filename}")
+        
+    return template_path
 
-def extract_client_data_from_markdown(markdown_text):
+def extract_contract_data(markdown_text: str) -> Dict[str, str]:
     """
-    Intenta extraer datos básicos del informe Markdown usando Regex.
-    Retorna un diccionario con lo encontrado.
+    Extracts relevant contract data (Name, RUT, Address, etc.) from a Markdown report.
+    
+    Args:
+        markdown_text: The content of the markdown report.
+        
+    Returns:
+        A dictionary with extracted fields.
     """
-    data = {}
+    data: Dict[str, str] = {}
     if not markdown_text:
         return data
 
-    # Patrones de búsqueda comunes en el informe
-    # Se modifican para ser más permisivos (ignorar mayúsculas, espacios extra)
+    # Regex patterns for extraction
+    # Using case-insensitive search and handling potential markdown formatting variations
     patterns = {
         "Nombre Completo": r"\*\*Nombre Completo:?\*\*\s*(.*)",
         "RUT": r"\*\*RUT:?\*\*\s*(.*)",
@@ -32,49 +65,51 @@ def extract_client_data_from_markdown(markdown_text):
         "Comuna": r"\*\*Comuna:?\*\*\s*(.*)",
         "Teléfono": r"\*\*Tel[ée]fono:?\*\*\s*(.*)",
         "Estado Civil": r"\*\*Estado Civil:?\*\*\s*(.*)",
-        "Cédula de Identidad": r"\*\*Cédula.*:?\*\*\s*(.*)", # A veces cambia
+        "Cédula de Identidad": r"\*\*Cédula.*?:?\*\*\s*(.*)",
     }
     
     for field, pattern in patterns.items():
         match = re.search(pattern, markdown_text, re.IGNORECASE)
         if match:
             val = match.group(1).strip()
-            # Filtrar valores no útiles
+            # Filter out placeholder or invalid values
             if val and "No informada" not in val and "[Extraer" not in val:
                 data[field] = val
             
-    # Fallback: Si RUT no se encuentra, buscar patrón de RUT chileno simple
+    # Fallback for RUT if not found by specific label
     if "RUT" not in data:
+         # Looks for standard Chilean RUT format: XX.XXX.XXX-X
          rut_match = re.search(r"\b(\d{1,2}\.\d{3}\.\d{3}-[\dkK])\b", markdown_text)
          if rut_match:
              data["RUT"] = rut_match.group(1)
 
     return data
 
-def replace_text_in_paragraph(paragraph, replacements):
+def _replace_text_in_paragraph(paragraph: Paragraph, replacements: Dict[str, str]) -> None:
     """
-    Reemplaza texto en un párrafo.
-    Estrategia Mixta:
-    1. Reemplazo directo de Placeholders {{KEY}} si existen.
-    2. Reemplazo de líneas de llenado (____________________) si se detecta la etiqueta clave cerca.
+    Helper function to replace text within a DOCX paragraph.
+    Handles both {{KEY}} placeholders and underscore lines (e.g., "Name: _______").
+    
+    Args:
+        paragraph: The paragraph object from python-docx.
+        replacements: Dictionary of keys to replace.
     """
     text = paragraph.text
     original_text = text
     
-    # 1. Reemplazo de Placeholders explícitos {{KEY}}
-    # Iteramos sobre las claves para ver si existen en el texto
+    # 1. Direct Placeholder Replacement {{KEY}}
     for key, value in replacements.items():
         if key in text and value:
             text = text.replace(key, str(value))
             
-    # 2. Estrategia de "Líneas de Llenado" (Underscores)
-    # Si tenemos "Nombre: ________________", lo convertimos a "Nombre: Juan Perez"
-    # Detectamos underscores largos
+    # 2. Underscore Line Replacement
+    # Example: "Nombre: ________________" -> "Nombre: Juan Perez"
     if "_" * 5 in text:
-        # Mapeo de Etiqueta -> Valor que debería ir ahí
+        # Map labels in the doc to keys in our data dictionary
+        # This mapping covers common labels found in the templates
         label_map = {
             "Nombre": replacements.get("{{NOMBRE}}", ""),
-            "Señor": replacements.get("{{NOMBRE}}", ""), # A veces dice "Señor(a): ____"
+            "Señor": replacements.get("{{NOMBRE}}", ""),
             "RUT": replacements.get("{{RUT}}", ""),
             "Dirección": replacements.get("{{DIRECCION}}", ""),
             "Domicilio": replacements.get("{{DIRECCION}}", ""),
@@ -85,42 +120,55 @@ def replace_text_in_paragraph(paragraph, replacements):
         
         for label, val in label_map.items():
             if val and label in text:
-                # Regex: Busca la etiqueta, seguida de caracteres opcionales y luego la línea
-                # Ej: "Nombre: ..........." o "Nombre: ________"
-                # Reemplazamos la línea por el VALOR en Negrita (idealmente, pero txt plano aquí)
-                regex = re.compile(f"({label}.*?)([_\\.]+)", re.IGNORECASE)
-                text = regex.sub(f"\\1 {val}", text)
+                # Regex to find label followed by dots or underscores
+                # e.g., "Nombre: ..........." or "Nombre: ________"
+                # using a raw string for regex pattern
+                pattern = rf"({label}.*?)([_\\.]+)"
+                regex = re.compile(pattern, re.IGNORECASE)
+                # Replace with captured label + value
+                text = regex.sub(rf"\1 {val}", text)
 
-    # Si hubo cambios, actualizamos el párrafo
-    # NOTA: Esto reemplaza todo el estilo del párrafo con el del primer run.
-    # Para contratos simples suele ser aceptable.
+    # Only update paragraph text if changes were made
     if text != original_text:
         paragraph.text = text
 
-
-def fill_contract_template(template_path, data_dict):
+def generate_contract_docx(template_path: Path, data: Dict[str, str]) -> bytes:
     """
-    Abre el DOCX, y realiza reemplazos en parrafos y tablas.
+    Generates a filled DOCX contract based on a template and data.
+    
+    Args:
+        template_path: Path to the .docx template file.
+        data: Dictionary of data to insert. Keys should match placeholders (e.g., "{{NOMBRE}}").
+        
+    Returns:
+        Bytes of the generated DOCX file.
+        
+    Raises:
+        Exception: Captures and re-raises any errors during processing.
     """
     try:
-        doc = Document(template_path)
+        if not template_path.exists():
+             raise FileNotFoundError(f"Template not found at {template_path}")
+
+        doc = Document(str(template_path))
         
-        # 1. Párrafos principales (Cuerpo del contrato)
+        # Process all paragraphs in the document body
         for paragraph in doc.paragraphs:
-            replace_text_in_paragraph(paragraph, data_dict)
+            _replace_text_in_paragraph(paragraph, data)
             
-        # 2. Tablas (Muy común en formularios)
+        # Process all tables (common in forms)
         for table in doc.tables:
             for row in table.rows:
                 for cell in row.cells:
                     for paragraph in cell.paragraphs:
-                         replace_text_in_paragraph(paragraph, data_dict)
+                         _replace_text_in_paragraph(paragraph, data)
                         
+        # Save to memory buffer
         output = io.BytesIO()
         doc.save(output)
+        output.seek(0)
         return output.getvalue()
         
     except Exception as e:
-        return None, str(e)
-
-
+        logger.error(f"Error generating contract: {e}", exc_info=True)
+        raise e
