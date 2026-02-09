@@ -621,26 +621,42 @@ if st.session_state.informe_actual:
         c_rut = st.text_input("RUT", value=st.session_state.contract_data.get("RUT", ""))
         c_direccion = st.text_input("Dirección", value=st.session_state.contract_data.get("Dirección", ""))
         c_comuna = st.text_input("Comuna", value=st.session_state.contract_data.get("Comuna", ""))
+        c_ciudad = st.text_input("Ciudad", value=st.session_state.contract_data.get("Ciudad", st.session_state.contract_data.get("Comuna", "")))
         c_telefono = st.text_input("Teléfono", value=st.session_state.contract_data.get("Teléfono", ""))
+        c_celular = st.text_input("Celular", value=st.session_state.contract_data.get("Celular", ""))
+        c_email = st.text_input("Correo Electrónico", value=st.session_state.contract_data.get("Correo Electrónico", ""))
+        c_estado_civil = st.text_input("Estado Civil", value=st.session_state.contract_data.get("Estado Civil", ""))
+        c_fecha_nac = st.text_input("Fecha de Nacimiento", value=st.session_state.contract_data.get("Fecha de Nacimiento", ""))
+        c_oficio = st.text_input("Profesión u Oficio", value=st.session_state.contract_data.get("Profesión u Oficio", ""))
+        c_afp = st.text_input("AFP de Origen", value=st.session_state.contract_data.get("AFP de Origen", ""))
+        c_salud = st.text_input("Sistema de Salud", value=st.session_state.contract_data.get("Sistema de Salud", st.session_state.contract_data.get("Institución de Salud", "")))
+        c_tipo_pension = st.text_input("Tipo de Pensión", value=st.session_state.contract_data.get("Tipo de Pensión Solicitada", ""))
         c_fecha = st.text_input("Fecha", value=datetime.now().strftime("%d/%m/%Y"))
         
         submitted = st.form_submit_button("Generar DOCX")
         
         if submitted:
             # Preparar diccionario de reemplazos
-            # Claves que el usuario debe poner en su DOCX o keywords comunes
-            # Vamos a intentar reemplazar AMBOS: placeholders {{KEY}} y texto literal si coincide
+            # Mapeo EXACTO a los placeholders del DOCX (según screenshot del usuario)
             replacements = {
+                "{NOMBRE AFILIADO}": c_nombre,
+                "{RUT AFILIADO}": c_rut,
+                "{DIRECCIÓN}": c_direccion,
+                "{COMUNA}": c_comuna,
+                "{CIUDAD}": c_ciudad,
+                "{CELULAR}": c_celular if c_celular else c_telefono, # Priorizar celular si existe
+                "{TELEFONO}": c_telefono,
+                "{CORREO ELECTRÓNICO}": c_email,
+                "{ESTADO CIVIL AFILIADO}": c_estado_civil,
+                "{FECHA DE NACIMIENTO AFILIADO}": c_fecha_nac,
+                "{OFICIO AFILIADO}": c_oficio,
+                "{AFP DE ORIGEN}": c_afp,
+                "{SISTEMA DE SALUD}": c_salud,
+                "{TIPO DE PENSIÓN}": c_tipo_pension,
+                "{FECHA}": c_fecha,
+                # Compatibilidad con posibles otros placeholders
                 "{{NOMBRE}}": c_nombre,
                 "{{RUT}}": c_rut,
-                "{{DIRECCION}}": c_direccion,
-                "{{COMUNA}}": c_comuna,
-                "{{TELEFONO}}": c_telefono,
-                "{{FECHA}}": c_fecha,
-                # Fallbacks sin llaves por si acaso
-                "CLIENTE_NOMBRE": c_nombre,
-                "CLIENTE_RUT": c_rut,
-                "CLIENTE_DIRECCION": c_direccion,
             }
             
             template_file = get_template_path(tipo_contrato_sel)
