@@ -13,27 +13,7 @@ import pytesseract
 from PIL import Image
 from contract_utils import get_contract_template_path, extract_contract_data, generate_contract_docx
 
-# ... (rest of imports)
 
-# ...
-
-# Inside the logic:
-    if 'contract_data' not in st.session_state or st.sidebar.button("Recargar Datos de Informe"):
-        st.session_state.contract_data = extract_contract_data(st.session_state.informe_actual)
-    
-    # ...
-
-            template_file = get_contract_template_path(tipo_contrato_sel)
-            
-            with st.spinner("Generando contrato..."):
-                docx_bytes = generate_contract_docx(template_file, replacements)
-                
-                if docx_bytes:
-                     st.session_state['ultimo_contrato_docx'] = docx_bytes
-                     st.session_state['ultimo_contrato_name'] = f"Contrato_Final_{c_nombre.split()[0]}.docx"
-                     st.success("¡Contrato Generado!")
-                else:
-                    st.error("Error desconocido al generar.")
 
 
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
