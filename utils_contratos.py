@@ -63,9 +63,17 @@ def extract_contract_data(markdown_text: str) -> Dict[str, str]:
         "RUT": r"\*\*RUT:?\*\*\s*(.*)",
         "Dirección": r"\*\*Direcci[óo]n:?\*\*\s*(.*)", 
         "Comuna": r"\*\*Comuna:?\*\*\s*(.*)",
+        "Ciudad": r"\*\*Ciudad:?\*\*\s*(.*)",
         "Teléfono": r"\*\*Tel[ée]fono:?\*\*\s*(.*)",
+        "Celular": r"\*\*Celular:?\*\*\s*(.*)",
         "Estado Civil": r"\*\*Estado Civil:?\*\*\s*(.*)",
         "Cédula de Identidad": r"\*\*Cédula.*?:?\*\*\s*(.*)",
+        "Fecha de Nacimiento": r"\*\*Fecha de Nacimiento:?\*\*\s*(.*)",
+        "AFP de Origen": r"\*\*AFP de Origen:?\*\*\s*(.*)",
+        "Institución de Salud": r"\*\*Institución de Salud:?\*\*\s*(.*)",
+        "Sistema de Salud": r"\*\*Sistema de Salud:?\*\*\s*(.*)",
+        "Tipo de Pensión Solicitada": r"\*\*Tipo de Pensión Solicitada:?\*\*\s*(.*)",
+        "Correo Electrónico": r"\*\*Correo.*?:?\*\*\s*(.*)",
     }
     
     for field, pattern in patterns.items():
@@ -172,3 +180,4 @@ def generate_contract_docx(template_path: Path, data: Dict[str, str]) -> bytes:
     except Exception as e:
         logger.error(f"Error generating contract: {e}", exc_info=True)
         raise e
+
