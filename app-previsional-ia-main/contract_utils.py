@@ -67,6 +67,7 @@ def extract_contract_data(markdown_text: str) -> Dict[str, str]:
         "Ciudad": r"\*\*Ciudad:?\*\*\s*(.*)",
         "Teléfono": r"\*\*Tel[ée]fono:?\*\*\s*(.*)",
         "Celular": r"\*\*Celular:?\*\*\s*(.*)",
+        "Correo Electrónico": r"\*\*Correo.*?:?\*\*\s*(.*)",
         "Estado Civil": r"\*\*Estado Civil:?\*\*\s*(.*)",
         "Cédula de Identidad": r"\*\*Cédula.*?:?\*\*\s*(.*)",
         "Fecha de Nacimiento": r"\*\*Fecha de Nacimiento:?\*\*\s*(.*)",
@@ -74,7 +75,14 @@ def extract_contract_data(markdown_text: str) -> Dict[str, str]:
         "Institución de Salud": r"\*\*Institución de Salud:?\*\*\s*(.*)",
         "Sistema de Salud": r"\*\*Sistema de Salud:?\*\*\s*(.*)",
         "Tipo de Pensión Solicitada": r"\*\*Tipo de Pensión Solicitada:?\*\*\s*(.*)",
-        "Correo Electrónico": r"\*\*Correo.*?:?\*\*\s*(.*)",
+        # New Fields for Solicitud de Ofertas
+        "Fecha Solicitud de Ofertas": r"\*\*Fecha Solicitud de Ofertas:?\*\*\s*(.*)",
+        "Modalidades Solicitadas": r"\*\*Modalidades Solicitadas:?\*\*\s*(.*)",
+        # Survivorship Specifics
+        "Causante Nombre": r"\*\*Causante Nombre:?\*\*\s*(.*)",
+        "Causante RUT": r"\*\*Causante RUT:?\*\*\s*(.*)",
+        "Consultante Nombre": r"\*\*Consultante Nombre:?\*\*\s*(.*)",
+        "Consultante RUT": r"\*\*Consultante RUT:?\*\*\s*(.*)",
     }
     
     for field, pattern in patterns.items():
@@ -94,7 +102,7 @@ def extract_contract_data(markdown_text: str) -> Dict[str, str]:
              data["RUT"] = rut_match.group(1)
 
     # --- Beneficiary Extraction ---
-    # Looks for "Beneficiario X [Nombre|RUT|Parentesco]: Value"
+    # Looks for "Beneficiario X [Nombre|RUT|Parentesco|Sexo|Invalidez|Fecha de Nacimiento]: Value"
     # We iterate to find up to 5 beneficiaries (arbitrary limit)
     for i in range(1, 6):
         # Regex for specific beneficiary fields
@@ -102,6 +110,9 @@ def extract_contract_data(markdown_text: str) -> Dict[str, str]:
             f"Beneficiario {i} Nombre": rf"\*\*Beneficiario {i} Nombre:?\*\*\s*(.*)",
             f"Beneficiario {i} RUT": rf"\*\*Beneficiario {i} RUT:?\*\*\s*(.*)",
             f"Beneficiario {i} Parentesco": rf"\*\*Beneficiario {i} Parentesco:?\*\*\s*(.*)",
+            f"Beneficiario {i} Sexo": rf"\*\*Beneficiario {i} Sexo:?\*\*\s*(.*)",
+            f"Beneficiario {i} Invalidez": rf"\*\*Beneficiario {i} Invalidez:?\*\*\s*(.*)",
+            f"Beneficiario {i} Fecha de Nacimiento": rf"\*\*Beneficiario {i} Fecha de Nacimiento:?\*\*\s*(.*)",
         }
         
         found_any = False
