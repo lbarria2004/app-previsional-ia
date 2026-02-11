@@ -116,26 +116,42 @@ TEXTO EXTRAÍDO DE LOS DOCUMENTOS DEL CLIENTE (SCOMP, CARTOLAS, ETC.):
 Basado ÚNICAMENTE en los documentos, genera el informe con la siguiente estructura exacta (Secciones 1 a 5):
 
 ## Informe final de Asesoría Previsional
-### 1) Antecedentes del afiliado y certificado SCOMP
+### 1) Antecedentes del afiliado y Solicitud de Ofertas
+[INSTRUCCIÓN CRÍTICA: Busca específicamente en el documento "Solicitud de Ofertas" para extraer los siguientes datos con mayor precisión. Si no están ahí, búscalos en el SCOMP.]
 * **Nombre Completo:** [Extraer]
 * **RUT:** [Extraer]
 * **Fecha de Nacimiento:** [Extraer]
 * **Edad Cumplida (a la fecha actual):** [Calcular o extraer si está]
 * **Sexo:** [Extraer]
 * **Estado Civil:** [Extraer]
-* **AFP de Origen:** [Extraer]
+* **Dirección:** [Extraer dirección completa incluyendo Comuna y Ciudad desde Solicitud de Ofertas]
+* **Correo Electrónico:** [Extraer e-mail desde Solicitud de Ofertas]
+* **Teléfono/Celular:** [Extraer]
+* **AFP de Origen:** [Extraer desde Solicitud de Ofertas]
 * **Institución de Salud:** [Extraer o poner "No informada"]
 * **Fecha Solicitud de Pensión:** [Extraer]
-* **Fecha de Emisión Certificado de Ofertas (SCOMP):** [Extraer]
-* **Período de Aceptación de Ofertas:** [Extraer fechas inicio y fin]
+* **Fecha Solicitud de Ofertas:** [Extraer fecha del encabezado del formulario Solicitud de Ofertas]
+* **Tipo de Pensión Solicitada:** [Extraer desde Solicitud de Ofertas, ej: Vejez Edad]
+* **Modalidades Solicitadas:** [Extraer TODAS las modalidades marcadas con 'X' en la Solicitud de Ofertas, incluyendo meses garantizados y cláusulas. Ej: "Retiro Programado", "Renta Vitalicia Inmediata con Condiciones Especiales de Cobertura: 240 meses garantizados"]
+
+#### Datos de Sobrevivencia (Solo si aplica)
+[Si el trámite es de Sobrevivencia, extrae lo siguiente del SCOMP / Solicitud de Ofertas]
+* **Causante Nombre:** [Nombre del fallecido]
+* **Causante RUT:** [RUT del fallecido]
+* **Consultante Nombre:** [Nombre de quien solicita]
+* **Consultante RUT:** [RUT de quien solicita]
+
 #### Certificado de Saldos
 **Descripción:** El saldo total destinado a pensión (Cotizaciones Obligatorias, Fondo [Extraer Fondo]) es de **UF [Extraer Saldo UF]**. Este monto equivale a **$[Extraer Saldo $]**. El valor de la UF utilizado es de **$[Extraer Valor UF]** al **[Extraer Fecha UF]**. Este Certificado se encuentra vigente hasta el día **[Extraer Vigencia Saldo]**.
 ### 2) Antecedentes del beneficiario
-[INSTRUCCIÓN CRÍTICA: Extraer los beneficiarios en el siguiente formato EXACTO para que el sistema los lea. Si hay más beneficiarios, repite incrementando el número (Beneficiario 2, Beneficiario 3...). Si NO hay, escribe: "El afiliado declara no contar con beneficiarios legales de pensión."]
+[INSTRUCCIÓN CRÍTICA: Extraer TODOS los beneficiarios listados en el SCOMP (tabla "Información Beneficiarios") en el siguiente formato EXACTO.]
 * **Beneficiario 1 Nombre:** [Nombre]
 * **Beneficiario 1 RUT:** [RUT]
 * **Beneficiario 1 Parentesco:** [Parentesco]
-* **Beneficiario 1 Fecha de Nacimiento:** [Fecha si aparece]
+* **Beneficiario 1 Sexo:** [F/M]
+* **Beneficiario 1 Invalidez:** [S/N]
+* **Beneficiario 1 Fecha de Nacimiento:** [Fecha]
+[Repetir para Beneficiario 2, 3, etc. si existen]
 ### 3) Situación previsional
 * **Tipo de Pensión Solicitada:** [Extraer, ej: Vejez Edad, Cambio de Modalidad]
 * **Saldo para Pensión:** **UF [Extraer Saldo UF]**
@@ -640,18 +656,50 @@ if st.session_state.informe_actual:
         c_fecha = st.text_input("Fecha", value=datetime.now().strftime("%d/%m/%Y"))
         
         # --- Campos Adicionales para Sobrevivencia ---
+        c_causante_nombre = ""
+        c_causante_rut = ""
+        c_consultante_nombre = ""
+        c_consultante_rut = ""
+        
         c_ben_nombre = ""
         c_ben_rut = ""
         c_ben_parentesco = ""
+        c_ben_sexo = "" # Nuevo
+        c_ben_invalidez = "" # Nuevo
+        c_ben_nac = "" # Nuevo
         
         if tipo_contrato_sel == "Sobrevivencia":
             st.markdown("---")
-            st.markdown("### Datos del Beneficiario (Sobrevivencia)")
-            st.info("El sistema precarga el primer beneficiario encontrado. Si hay más, edita el contrato final.")
+            st.markdown("### Datos de Sobrevivencia")
+            
+            st.caption("Causante (Fallecido)")
+            col1, col2 = st.columns(2)
+            with col1:
+                c_causante_nombre = st.text_input("Nombre Causante", value=st.session_state.contract_data.get("Causante Nombre", ""))
+            with col2:
+                c_causante_rut = st.text_input("RUT Causante", value=st.session_state.contract_data.get("Causante RUT", ""))
+                
+            st.caption("Consultante (Solicitante)")
+            col3, col4 = st.columns(2)
+            with col3:
+                c_consultante_nombre = st.text_input("Nombre Consultante", value=st.session_state.contract_data.get("Consultante Nombre", ""))
+            with col4:
+                c_consultante_rut = st.text_input("RUT Consultante", value=st.session_state.contract_data.get("Consultante RUT", ""))
+
+            st.markdown("### Datos del Beneficiario Principal")
+            st.info("El sistema precarga el beneficiario 1. Si hay más, edita el contrato final.")
             
             c_ben_nombre = st.text_input("Nombre Beneficiario", value=st.session_state.contract_data.get("Beneficiario 1 Nombre", ""))
             c_ben_rut = st.text_input("RUT Beneficiario", value=st.session_state.contract_data.get("Beneficiario 1 RUT", ""))
             c_ben_parentesco = st.text_input("Parentesco", value=st.session_state.contract_data.get("Beneficiario 1 Parentesco", ""))
+            
+            col_b1, col_b2, col_b3 = st.columns(3)
+            with col_b1:
+                 c_ben_sexo = st.text_input("Sexo", value=st.session_state.contract_data.get("Beneficiario 1 Sexo", ""))
+            with col_b2:
+                 c_ben_invalidez = st.text_input("Invalidez", value=st.session_state.contract_data.get("Beneficiario 1 Invalidez", ""))
+            with col_b3:
+                 c_ben_nac = st.text_input("Fecha Nac.", value=st.session_state.contract_data.get("Beneficiario 1 Fecha de Nacimiento", "")) # Nuevo
         # ---------------------------------------------
         
         submitted = st.form_submit_button("Generar DOCX")
@@ -681,9 +729,17 @@ if st.session_state.informe_actual:
             
             # --- Agregado para Sobrevivencia ---
             if tipo_contrato_sel == "Sobrevivencia":
+                replacements["{NOMBRE CAUSANTE}"] = c_causante_nombre
+                replacements["{RUT CAUSANTE}"] = c_causante_rut
+                replacements["{NOMBRE CONSULTANTE}"] = c_consultante_nombre
+                replacements["{RUT CONSULTANTE}"] = c_consultante_rut
+                
                 replacements["{NOMBRE BENEFICIARIO}"] = c_ben_nombre
                 replacements["{RUT BENEFICIARIO}"] = c_ben_rut
                 replacements["{PARENTESCO BENEFICIARIO}"] = c_ben_parentesco
+                replacements["{SEXO BENEFICIARIO}"] = c_ben_sexo
+                replacements["{INVALIDEZ BENEFICIARIO}"] = c_ben_invalidez
+                replacements["{FECHA NAC BENEFICIARIO}"] = c_ben_nac
                 # Si el contrato tiene placeholders para mas beneficiarios, se pueden agregar aqui
                 # Por ahora asumimos 1 principal o que el usuario rellena el resto a mano si son muchos.
             # -----------------------------------
