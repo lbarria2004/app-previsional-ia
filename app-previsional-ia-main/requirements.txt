@@ -1,7 +1,0 @@
-streamlit
-google-generativeai
-python-docx
-PyMuPDF
-pytesseract
-Pillow
-docxtpl
